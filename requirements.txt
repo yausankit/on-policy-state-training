@@ -1,0 +1,12 @@
+torch==2.5.1
+transformers==4.51.3
+peft==0.17.1
+numpy==1.26.4
+faiss-cpu==1.9.0
+matplotlib
+scipy
+scikit-learn
+bm25s
+PyStemmer
+httpx
+openai

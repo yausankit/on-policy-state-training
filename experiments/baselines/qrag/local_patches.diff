@@ -1,0 +1,139 @@
+diff --git a/rl/agents/pqn.py b/rl/agents/pqn.py
+index a78b7e7..114321d 100644
+--- a/rl/agents/pqn.py
++++ b/rl/agents/pqn.py
+@@ -106,10 +106,21 @@ class PQN(object):
+         state_embed_copy = copy.deepcopy(state_embed)
+         
+         self.critic = TextQNet(state_embed, action_embed).to(torch.get_default_device())
+-        self.critic_optim = instantiate(config.pqn.optimizer, params=self.critic.parameters())
++        import os as _os
++        self._cpu_adam = _os.environ.get("QRAG_CPU_ADAM", "0") == "1"
++        if self._cpu_adam:
++            self._gpu_params = [p for p in self.critic.parameters()]
++            self._cpu_params = [torch.nn.Parameter(p.detach().to("cpu", copy=True).pin_memory()) for p in self._gpu_params]
++            self.critic_optim = instantiate(config.pqn.optimizer, params=self._cpu_params)
++        else:
++            self.critic_optim = instantiate(config.pqn.optimizer, params=self.critic.parameters())
+         self.scheduler = instantiate(config.pqn.scheduler, optimizer=self.critic_optim)
+        
+         self.policy = TextQNetPolicy(state_embed_copy, self.critic).to(torch.get_default_device())
++        import os as _os
++        if _os.environ.get("QRAG_SHARE_POLICY", "0") == "1":
++            del state_embed_copy
++            self.policy.state_embed = self.critic.state_embed
+         self.random_policy = TextRandomPolicy().to(torch.get_default_device())
+ 
+         self.v_net_target = TextVNet(state_embed_target, self.critic).to(torch.get_default_device())
+@@ -310,14 +321,29 @@ class PQN(object):
+         self._update_step += 1
+         if self._update_step % self.accumulate_grads == 0:
+             torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.max_grad_norm)
+-            self.critic_optim.step()
+-            self.scheduler.step()
+-            self.critic_optim.zero_grad()
++            if self._cpu_adam:
++                with torch.no_grad():
++                    for pg, pc in zip(self._gpu_params, self._cpu_params):
++                        pc.grad = None if pg.grad is None else pg.grad.to("cpu", non_blocking=True)
++                    torch.cuda.synchronize()
++                    self.critic_optim.step()
++                    for pg, pc in zip(self._gpu_params, self._cpu_params):
++                        pg.copy_(pc, non_blocking=True)
++                    torch.cuda.synchronize()
++                    for pg in self._gpu_params:
++                        pg.grad = None
++                self.scheduler.step()
++                self.critic_optim.zero_grad()
++            else:
++                self.critic_optim.step()
++                self.scheduler.step()
++                self.critic_optim.zero_grad()
+ 
+             self.alpha = self.alpha_start * float(self.scheduler.get_lr()[0]) / self.start_lr
+             self.v_net_target.update(self.critic, self.tau)
+             self.action_embed_target.update(self.critic, self.tau)
+-            self.policy.update(self.critic)
++            if self.policy.state_embed is not self.critic.state_embed:
++                self.policy.update(self.critic)
+ 
+         return qf_loss.item()
+ 
+@@ -363,6 +389,10 @@ class PQN(object):
+         checkpoint = torch.load(checkpoint_path, map_location=torch.get_default_device(), weights_only=False)
+ 
+         self.critic.load_state_dict(checkpoint["critic"], strict=strict)
++        if getattr(self, "_cpu_adam", False):
++            with torch.no_grad():
++                for pg, pc in zip(self._gpu_params, self._cpu_params):
++                    pc.copy_(pg.detach().cpu())
+         self.policy.load_state_dict(checkpoint["policy"], strict=strict)
+         # у random_policy обычно нет параметров, но на всякий случай
+         if "random_policy" in checkpoint:
+diff --git a/rl/bert_predictor.py b/rl/bert_predictor.py
+index 44fc453..9ab54f6 100644
+--- a/rl/bert_predictor.py
++++ b/rl/bert_predictor.py
+@@ -80,6 +80,10 @@ class SimpleEmbedder(nn.Module):
+         self.model = AutoModel.from_pretrained(model_name, **model_kwargs)
+         self.model_dim = get_embedder_dim(self.tokenizer, self.model)
+         self.model.train()
++        # [round64 local patch] activation (gradient) checkpointing to fit the 4090's free memory; math unchanged
++        import os as _os
++        if _os.environ.get("QRAG_GRAD_CKPT", "0") == "1":
++            self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+         print('SimpleEmbedder.dtype:', self.model.dtype)
+         print('SimpleEmbedder.model_dim:', self.model_dim)
+ 
+diff --git a/train_q_rag.py b/train_q_rag.py
+index 3abc397..ac5ee7f 100644
+--- a/train_q_rag.py
++++ b/train_q_rag.py
+@@ -55,7 +55,10 @@ def prepare_config(cfg):
+     """
+     modifies config for parameters that should depend on each other
+     """
+-    if cfg.logger.log_dir is not None:
++    if os.environ.get("QRAG_RESUME"):  # [round64 local patch] keep writing into the resumed run dir
++        cfg.logger.log_dir = os.environ["QRAG_RESUME"]
++        cfg.logger.tensorboard.log_dir = os.path.join(cfg.logger.log_dir, "tb_logs/")
++    elif cfg.logger.log_dir is not None:
+         dir_name = datetime.now().strftime("%b%d_%H-%M-%S") + cfg.logger.tensorboard.comment
+         cfg.logger.log_dir = os.path.join(cfg.logger.log_dir, dir_name)
+         cfg.logger.tensorboard.log_dir = os.path.join(cfg.logger.log_dir, 'tb_logs/')
+@@ -128,10 +131,20 @@ parallel_env = ParallelTextEnv(
+ total_steps = cfg.steps_count * cfg.accumulate_grads
+ eval_interval = cfg.eval_interval * cfg.accumulate_grads
+ #assuming we don't need to scale cfg.learning_start with grad_accumulation
+-progress_bar = tqdm(range(total_steps), desc="Training")
++start_it = 0
++step = 0
++_resume_dir = os.environ.get("QRAG_RESUME")
++if _resume_dir:
++    _st = torch.load(os.path.join(_resume_dir, "resume_state.pt"), map_location="cpu", weights_only=False)
++    agent.load(os.path.join(_resume_dir, "model_last.pt"), strict=True)
++    agent._update_step = _st["update_step"]
++    start_it, step, best_eval_reward = _st["it"] + 1, _st["step"], _st["best_eval_reward"]
++    random.setstate(_st["py_rng"]); np.random.set_state(_st["np_rng"])
++    torch.set_rng_state(_st["torch_rng"]); torch.cuda.set_rng_state(_st["cuda_rng"])
++    print(f"[INFO] resumed from {_resume_dir} at it={start_it}, step={step}, best={best_eval_reward}")
++progress_bar = tqdm(range(start_it, total_steps), desc="Training", initial=start_it, total=total_steps)
+ 
+ states_list, _ = parallel_env.reset()
+-step = 0
+ train_rewards = []
+ 
+ for it in progress_bar:
+@@ -171,6 +184,12 @@ for it in progress_bar:
+             'step': step,
+         })
+         agent.save(ckpt_last_path)
++        _best_after = max(best_eval_reward, float(np.mean(r_eval)))
++        torch.save({"it": it, "step": step, "best_eval_reward": _best_after, "update_step": agent._update_step,
++                    "py_rng": random.getstate(), "np_rng": np.random.get_state(),
++                    "torch_rng": torch.get_rng_state(), "cuda_rng": torch.cuda.get_rng_state()},
++                   os.path.join(cfg.logger.log_dir, "resume_state.pt.tmp"))
++        os.replace(os.path.join(cfg.logger.log_dir, "resume_state.pt.tmp"), os.path.join(cfg.logger.log_dir, "resume_state.pt"))
+         #torch.save(agent.state_dict(), ckpt_last_path)
+ 
+         mean_eval_reward = np.mean(r_eval)
