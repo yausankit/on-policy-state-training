@@ -1,7 +1,7 @@
 """R68: R30 official-MDR two-hop evaluator (beam 5, exact IP, additive chain score, all 25 chains),
 generalised to an arbitrary corpus/questions directory. Model loading and encoding imported unchanged from round30/core30.py."""
 import sys,os,time,argparse,gc
-sys.path.insert(0,'/home/amax/revision_20260928/round30')
+sys.path.insert(0,os.path.dirname(os.path.abspath(__file__)))
 from core30 import *
 import faiss
 p=argparse.ArgumentParser();p.add_argument('--inputs',required=True);p.add_argument('--out',required=True);p.add_argument('--questions',default='questions.json');p.add_argument('--threads',type=int,default=8);a=p.parse_args()

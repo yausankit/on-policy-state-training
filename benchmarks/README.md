@@ -16,4 +16,4 @@ The corpora (554,812 and 220,000 passages, 228 MB and 102 MB) are not included. 
 - `llm_pipeline.py`: question writing and filters (no leak of intermediate entities, answerable from shuffled gold passages, unique answer, naturalness); contains the prompts.
 - `verify53.py`: re-verification by a second model family.
 - `shortcut_bm25.py`, `shortcut_bm25_hotpot.py`, `eval_bm25_corpus.py`: question-only BM25 shortcut filter and corpus checks.
-- `finalize53.py`, `finalize_refined.py`: sampling, type balance and corpus construction of the released split.
+- `finalize_refined.py`: sampling, type balance and corpus construction of the released split.

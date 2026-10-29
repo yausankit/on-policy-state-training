@@ -1,7 +1,7 @@
 """Shared dataset loading for the R69 LinearRAG run (no heavy deps)."""
 import json, os, random
 import numpy as np
-R = '/home/amax/revision_20260928'
+R = os.environ.get('WORK', '.') + ''
 DATA = {
     'musique': dict(dir=f'{R}/round29/inputs/design', kind='musique', cfg='musique'),
     'hotpot_full': dict(dir=f'{R}/round57/round54/data/hotpotqa_long_ref/inputs/test', kind='long', cfg='hotpotqa'),

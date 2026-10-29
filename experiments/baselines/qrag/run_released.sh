@@ -1,6 +1,6 @@
 #!/bin/bash
 # Full-corpus evaluation of the released checkpoint Q-RAG/qrag-ft-e5-on-musique (tensors-only checkpoint loading).
-Q=/home/amax/revision_20260928/round64/qrag
+Q=${WORK:-.}/round64/qrag
 R=$Q/released/qrag-ft-e5-on-musique
 cd $Q
 export CUDA_DEVICE_ORDER=PCI_BUS_ID CUDA_VISIBLE_DEVICES=2 HF_HOME=$Q/hf_home HF_HUB_OFFLINE=1 TOKENIZERS_PARALLELISM=false

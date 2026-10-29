@@ -95,10 +95,14 @@ Teacher-forced 的检索链一旦取到非 gold 段落，下一步的查询就�
 ```
 on-policy-state-training/
 ├── src/
-│   ├── round29/       核心检索器：状态序列化、roll-in、状态混合、训练、链式推理
-│   ├── longchain/     HotpotQA-Long 与 2Wiki-Long 上的零样本评测（T = 8）
-│   ├── round78/       共享负例池、固定状态恢复率探针、负例池重叠
-│   └── round87/       机制对照：合成污染、从同一次 roll-in 重采样
+│   ├── core.py, states.py, train.py     编码器与状态文本、各训练条件的训练状态、训练
+│   ├── inference.py, evaluate.py        greedy 链式检索与 MuSiQue 评测
+│   ├── initial_mix.py, rollin_fixed.py  第一个 epoch 的混合状态、只收集一次的访问状态
+│   ├── static_reference.py              合成污染的匹配统计
+│   ├── shared_pool.py, overlap.py       共享负例池
+│   ├── probe.py, metrics.py             固定状态恢复率探针、R@k 与 C@k
+│   ├── longchain/                       HotpotQA-Long 与 2Wiki-Long 上的零样本评测（T = 8）
+│   └── run_paper.sh                     按依赖顺序列出全部命令
 ├── experiments/
 │   ├── beam/          greedy 与 beam 解码
 │   ├── qa/            固定阅读器的下游问答
@@ -113,10 +117,7 @@ on-policy-state-training/
 
 | 目录 | 对应论文 |
 |---|---|
-| `src/round29` | 第 3–5 节，Table 1–4 |
-| `src/longchain` | Table 1 与 Table 3 |
-| `src/round78` | 第 5.4、5.5.2 节，附录 B |
-| `src/round87` | 第 5.5.1 节，Table 4 |
+| `src` | 第 3–5 节，Table 1、3、4、11，附录 A–C |
 | `experiments/beam` | 附录 F.3 |
 | `experiments/qa` | Table 2，附录 F.1 |
 | `experiments/reduced_corpus` | 附录 D |
@@ -124,26 +125,24 @@ on-policy-state-training/
 | `benchmarks` | 第 5.1 节，附录 E |
 | `figures` | Figure 2–7 |
 
-每个目录都有自己的 README。脚本保持实际运行时的样子，文件名中的数字是它所属的实验轮次。
+每个目录都有自己的 README；`src/README.md` 列出了每个训练条件对应论文里的哪一行。
 
 ## 快速开始
 
 ```bash
 pip install -r requirements.txt
+cd src
 
-# 在 MuSiQue 上训练 teacher forcing（RN）和 on-policy state training（OP-refresh）
-python src/round29/train29.py --condition RN         --lr 3e-4 --seed 13
-python src/round29/train29.py --condition OP-refresh --lr 3e-4 --seed 13
+python train.py --condition RN         --lr 3e-4 --seed 13   # teacher forcing
+python initial_mix.py                                        # 用 teacher-forced 编码器的 roll-in 构建第一个 epoch 的混合状态
+python train.py --condition OP-refresh --lr 3e-4 --seed 13   # on-policy state training
 
-# 在 MuSiQue 测试题上做链式检索
-python src/round29/evaluate29.py --condition OP-refresh --seed 13 --split design
-
-# 零样本迁移到长链 benchmark
-python src/longchain/eval54.py --dataset hotpotqa_long --condition OP-refresh --seed 13
-python src/longchain/eval54.py --dataset 2wiki_long    --condition OP-refresh --seed 13
+python evaluate.py --condition OP-refresh --seed 13 --split design                 # MuSiQue 测试题
+python longchain/eval54.py --dataset hotpotqa_long --condition OP-refresh --seed 13  # 零样本迁移
+python longchain/eval54.py --dataset 2wiki_long    --condition OP-refresh --seed 13
 ```
 
-论文里用到的其他条件：`Fixed-OP`（去掉刷新）和 `SQ-LoRA-v2`（去掉链式检索）。
+`run_paper.sh` 还包括消融（`Fixed-OP`、`SQ-LoRA-v2`）、Table 4 的对照（`Static-corrupt`、`Static-refresh`、`Pool-resample`）、混合比例（`Mix-25`、`Mix-75`）、恢复率探针和共享负例池。
 
 ## Benchmark
 
@@ -158,7 +157,7 @@ python src/longchain/eval54.py --dataset 2wiki_long    --condition OP-refresh --
 
 - Python 3.11、torch 2.5.1（CUDA 12.4）、transformers 4.51.3、peft 0.17.1、numpy 1.26.4、faiss 1.9.0。baseline 使用各自的官方仓库。
 - **不包含：** 模型权重、LoRA adapter、段落向量、完整的长链语料、日志和中间结果。
-- 脚本里保留了运行机器上的绝对路径（例如 `/data1/...`），使用前请修改，或设置大多数脚本会读取的环境变量 `R29_DIR`、`R19_MODEL` 和 `R70_BASE`。
+- 数据路径由 `OPST_ROOT` 指定（见 `src/README.md`），`R19_MODEL` 指向本地的 Qwen3-Embedding-0.6B，baseline 脚本从 `WORK` 读取外部仓库。
 - 调用语言模型的脚本从环境变量读取 `DEEPSEEK_API_KEY` 和 `DEEPSEEK_BASE_URL`。
 
 ## 引用

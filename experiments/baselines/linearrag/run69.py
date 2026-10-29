@@ -2,7 +2,7 @@
 Official classes/methods are used unchanged except the overrides marked DEVIATION (memory/speed only, same math)."""
 import sys, os, json, time, math, gc
 import numpy as np, torch
-sys.path.insert(0, '/home/amax/revision_20260928/round69/linearrag/LinearRAG')
+sys.path.insert(0, os.environ.get('WORK', '.') + '/round69/linearrag/LinearRAG')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import types
 _ner = types.ModuleType('src.ner'); _ner.SpacyNER = None; sys.modules['src.ner'] = _ner  # NER precomputed in stage A with the official spacy env
@@ -12,7 +12,7 @@ from src.utils import compute_mdhash_id
 from transformers import AutoTokenizer, AutoModel
 from common69 import DATA, CFG, passages, load_questions
 QP = 'Instruct: Given a question, retrieve relevant documents that best answer the question.\nQuery: '
-MODEL = '/home/amax/revision_20260928/round8/encoder/model'
+MODEL = os.environ.get('WORK', '.') + '/round8/encoder/model'
 
 class QwenST:
     """SentenceTransformer-like encode(): str -> query (instruction prefix), list -> documents/entities/sentences (no prefix).

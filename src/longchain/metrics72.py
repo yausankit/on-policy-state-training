@@ -1,7 +1,7 @@
-"""Recompute R@5 R@10 C@5 C@10 from saved rankings. MuSiQue: gold = supporting paragraph texts (R29 analyze rule); long-chain: ordered_gold ids."""
-import json,numpy as np
+"""R@5, R@10, C@5 and C@10 from saved rankings. MuSiQue: gold = supporting paragraph texts; long-chain: ordered_gold ids."""
+import json,os,numpy as np
 from pathlib import Path
-W=Path("/home/amax/revision_20260928/round72");R57=Path("/home/amax/revision_20260928/round57/round54")
+W=Path(os.environ.get("RESULTS_DIR","."));R57=Path(os.environ.get("LONGCHAIN_ROOT",Path(__file__).resolve().parent))
 def read(p):return json.loads(Path(p).read_text())
 def norm(t):return " ".join(str(t).split())
 def score(ranks,goldsets):

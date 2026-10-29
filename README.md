@@ -95,10 +95,14 @@ Once the teacher-forced chain retrieves a non-gold passage, its next query point
 ```
 on-policy-state-training/
 ├── src/
-│   ├── round29/       core retriever: state serialization, roll-ins, state mixing, training, chain inference
-│   ├── longchain/     zero-shot evaluation on HotpotQA-Long and 2Wiki-Long (T = 8)
-│   ├── round78/       shared negative pools, fixed-state recovery probe, pool overlap
-│   └── round87/       mechanism controls: synthetic contamination, resampling from one roll-in
+│   ├── core.py, states.py, train.py     encoder and state text, training states of every condition, training
+│   ├── inference.py, evaluate.py        greedy chain retrieval and evaluation on MuSiQue
+│   ├── initial_mix.py, rollin_fixed.py  epoch-1 mix and visited states collected once
+│   ├── static_reference.py              matching statistics for synthetic contamination
+│   ├── shared_pool.py, overlap.py       shared negative pools
+│   ├── probe.py, metrics.py             fixed-state recovery probe, R@k and C@k
+│   ├── longchain/                       zero-shot evaluation on HotpotQA-Long and 2Wiki-Long (T = 8)
+│   └── run_paper.sh                     all commands in dependency order
 ├── experiments/
 │   ├── beam/          greedy vs. beam decoding
 │   ├── qa/            downstream QA with a fixed reader
@@ -113,10 +117,7 @@ on-policy-state-training/
 
 | Folder | Paper |
 |---|---|
-| `src/round29` | Sections 3–5, Tables 1–4 |
-| `src/longchain` | Tables 1 and 3 |
-| `src/round78` | Sections 5.4 and 5.5.2, Appendix B |
-| `src/round87` | Section 5.5.1, Table 4 |
+| `src` | Sections 3–5, Tables 1, 3, 4, 11, Appendices A–C |
 | `experiments/beam` | Appendix F.3 |
 | `experiments/qa` | Table 2, Appendix F.1 |
 | `experiments/reduced_corpus` | Appendix D |
@@ -124,26 +125,24 @@ on-policy-state-training/
 | `benchmarks` | Section 5.1, Appendix E |
 | `figures` | Figures 2–7 |
 
-Each folder has its own README. Scripts are kept as they were run; the number in a file name is the experiment round it comes from.
+Each folder has its own README; `src/README.md` maps every training condition to its row in the paper.
 
 ## Quick start
 
 ```bash
 pip install -r requirements.txt
+cd src
 
-# teacher forcing (RN) and on-policy state training (OP-refresh) on MuSiQue
-python src/round29/train29.py --condition RN         --lr 3e-4 --seed 13
-python src/round29/train29.py --condition OP-refresh --lr 3e-4 --seed 13
+python train.py --condition RN         --lr 3e-4 --seed 13   # teacher forcing
+python initial_mix.py                                        # epoch-1 mix from the teacher-forced roll-in
+python train.py --condition OP-refresh --lr 3e-4 --seed 13   # on-policy state training
 
-# chain retrieval on the MuSiQue test questions
-python src/round29/evaluate29.py --condition OP-refresh --seed 13 --split design
-
-# zero-shot transfer to the long-chain benchmarks
-python src/longchain/eval54.py --dataset hotpotqa_long --condition OP-refresh --seed 13
-python src/longchain/eval54.py --dataset 2wiki_long    --condition OP-refresh --seed 13
+python evaluate.py --condition OP-refresh --seed 13 --split design                 # MuSiQue test questions
+python longchain/eval54.py --dataset hotpotqa_long --condition OP-refresh --seed 13  # zero-shot transfer
+python longchain/eval54.py --dataset 2wiki_long    --condition OP-refresh --seed 13
 ```
 
-Other conditions used in the paper: `Fixed-OP` (w/o refresh) and `SQ-LoRA-v2` (w/o chain).
+`run_paper.sh` adds the ablations (`Fixed-OP`, `SQ-LoRA-v2`), the controls of Table 4 (`Static-corrupt`, `Static-refresh`, `Pool-resample`), the mixing ratio (`Mix-25`, `Mix-75`), the recovery probe and the shared negative pools.
 
 ## Benchmarks
 
@@ -158,7 +157,7 @@ Questions name only the starting entity. A model of a different family re-checks
 
 - Python 3.11, torch 2.5.1 (CUDA 12.4), transformers 4.51.3, peft 0.17.1, numpy 1.26.4, faiss 1.9.0. Baselines use their official repositories.
 - **Not included:** model weights, LoRA adapters, passage embeddings, the full long-chain corpora, logs and intermediate outputs.
-- Scripts contain absolute paths of the machines they ran on (for example `/data1/...`). Adapt them, or set the environment variables `R29_DIR`, `R19_MODEL` and `R70_BASE` that most scripts read.
+- Data paths follow `OPST_ROOT` (see `src/README.md`); `R19_MODEL` points to a local copy of Qwen3-Embedding-0.6B, and baseline scripts read their external checkouts from `WORK`.
 - Language model calls read `DEEPSEEK_API_KEY` and `DEEPSEEK_BASE_URL` from the environment.
 
 ## Citation

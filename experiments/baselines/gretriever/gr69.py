@@ -4,13 +4,13 @@ Calls the official retrieval_via_pcst (G-Retriever repo, unmodified) with WebQSP
 import json, re, sys, time, os
 from pathlib import Path
 import numpy as np, torch
-sys.path.insert(0, '/home/amax/revision_20260928/round69/gretriever/G-Retriever')
+sys.path.insert(0, os.environ.get('WORK', '.') + '/round69/gretriever/G-Retriever')
 from src.dataset.utils.retrieval import retrieval_via_pcst
 from torch_geometric.data.data import Data
 from transformers import AutoTokenizer, AutoModel
 
-W = Path('/home/amax/revision_20260928/round69/gretriever'); R54 = Path('/home/amax/revision_20260928/round57/round54/data')
-MODEL = '/home/amax/revision_20260928/round8/encoder/model'
+W = Path(os.environ.get('WORK', '.') + '/round69/gretriever'); R54 = Path(os.environ.get('WORK', '.') + '/round57/round54/data')
+MODEL = os.environ.get('WORK', '.') + '/round8/encoder/model'
 QP = 'Instruct: Given a question, retrieve relevant documents that best answer the question.\nQuery: '
 TOPK, TOPK_E, COST_E = 3, 5, 0.5
 norm = lambda t: ' '.join(str(t or '').split())
@@ -20,7 +20,7 @@ read = lambda p: json.load(open(p))
 
 def load(ds):
     if ds == 'musique':
-        d = Path('/home/amax/revision_20260928/round29/inputs/design')
+        d = Path(os.environ.get('WORK', '.') + '/round29/inputs/design')
         corp = [norm(c['title']) + '\n' + norm(c['text']) for c in read(d / 'corpus.json')]
         idx = {key(c): i for i, c in enumerate(corp)}
         qs, gold, typ = [], {}, {}

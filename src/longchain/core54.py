@@ -9,10 +9,10 @@ from pathlib import Path
 import numpy as np
 import torch
 
-sys.path.insert(0, os.environ.get('R29_DIR', '/home/qcj/revision_20260928/round29'))
-from core29 import Encoder, text19, norm  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from core import Encoder, text19, norm  # noqa: E402
 
-ROOT = Path(os.environ.get('R54_ROOT', '/home/qcj/revision_20260928/round54'))
+ROOT = Path(os.environ.get('LONGCHAIN_ROOT', Path(__file__).resolve().parent))
 MAX_STATES_PER_QUESTION = 4      # cap on gold states per question (comparisons have 6-8 gold passages)
 NEG_POOL = 100
 

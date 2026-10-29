@@ -3,7 +3,7 @@ Only change vs official batch_ner: spacy.prefer_gpu() and a fixed pipe batch siz
 streaming instead of materialising all docs."""
 import sys, json, time, os
 from collections import defaultdict
-sys.path.insert(0, '/home/amax/revision_20260928/round69/linearrag/LinearRAG')
+sys.path.insert(0, os.environ.get('WORK', '.') + '/round69/linearrag/LinearRAG')
 sys.path.insert(0, os.path.dirname(__file__))
 import spacy
 print('gpu', spacy.prefer_gpu(), flush=True)
