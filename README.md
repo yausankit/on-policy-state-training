@@ -164,10 +164,10 @@ Questions name only the starting entity. A model of a different family re-checks
 ## Citation
 
 ```bibtex
-@article{onpolicystate2026,
+@article{qiu2026retrieving,
   title   = {Retrieving from Your Own Mistakes: On-Policy Training of Embedding Models
              for Multi-Hop Retrieval-Augmented Generation},
-  author  = {TBD},
+  author  = {Qiu, Chenjie and Zeng, Zixuan and Shi, Shaobin and Chen, Bingfeng and Luo, Dongsheng and Xu, Boyan},
   journal = {arXiv preprint},
   year    = {2026}
 }
