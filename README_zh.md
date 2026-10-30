@@ -6,10 +6,14 @@
 
 [English](README.md) · **简体中文**
 
+[![arXiv](https://img.shields.io/badge/arXiv-2610.40409-b31b1b?logo=arxiv&logoColor=white)](https://arxiv.org/abs/2610.40409)
 ![Python](https://img.shields.io/badge/python-3.11-3776AB?logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.5.1-EE4C2C?logo=pytorch&logoColor=white)
 ![Encoder](https://img.shields.io/badge/encoder-Qwen3--Embedding--0.6B-6E4FC9)
 ![LLM calls](https://img.shields.io/badge/LLM%20calls%20at%20retrieval-0-2E8B57)
+
+
+📄 **论文：** [arXiv:2610.40409](https://arxiv.org/abs/2610.40409)
 
 </div>
 
@@ -164,10 +168,14 @@ python longchain/eval54.py --dataset 2wiki_long    --condition OP-refresh --seed
 
 ```bibtex
 @article{qiu2026retrieving,
-  title   = {Retrieving from Your Own Mistakes: On-Policy Training of Embedding Models
-             for Multi-Hop Retrieval-Augmented Generation},
-  author  = {Qiu, Chenjie and Zeng, Zixuan and Shi, Shaobin and Chen, Bingfeng and Luo, Dongsheng and Xu, Boyan},
-  journal = {arXiv preprint},
-  year    = {2026}
+  title         = {Retrieving from Your Own Mistakes: On-Policy Training of Embedding Models
+                   for Multi-Hop Retrieval-Augmented Generation},
+  author        = {Qiu, Chenjie and Zeng, Zixuan and Shi, Shaobin and Chen, Bingfeng and Luo, Dongsheng and Xu, Boyan},
+  journal       = {arXiv preprint arXiv:2610.40409},
+  eprint        = {2610.40409},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.AI},
+  year          = {2026},
+  url           = {https://arxiv.org/abs/2610.40409}
 }
 ```
